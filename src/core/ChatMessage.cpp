@@ -32,7 +32,8 @@
 ChatMessage::ChatMessage()
   : m_userId( ID_INVALID ), m_message( "" ), m_timestamp(), m_textColor(),
     m_type( ChatMessage::Other ), m_isImportant( false ), m_canBeSaved( false ),
-    m_isSourceCode( false ), m_replyToText( "" ), m_replyToSender( "" )
+    m_isSourceCode( false ), m_replyToText( "" ), m_replyToSender( "" ),
+    m_reactionEmoji( "" ), m_reactionTargetKey( "" ), m_reactionIsRemoval( false )
 {
 }
 
@@ -44,7 +45,8 @@ ChatMessage::ChatMessage( const ChatMessage& cm )
 ChatMessage::ChatMessage( VNumber user_id, const Message& m, ChatMessage::Type cmt, bool can_be_saved )
   : m_userId( user_id ), m_message( "" ), m_timestamp(), m_textColor(), m_type( cmt ),
     m_isImportant( false ), m_canBeSaved( can_be_saved ), m_isSourceCode( false ),
-    m_replyToText( "" ), m_replyToSender( "" )
+    m_replyToText( "" ), m_replyToSender( "" ),
+    m_reactionEmoji( "" ), m_reactionTargetKey( "" ), m_reactionIsRemoval( false )
 {
   createFromMessage( m );
 }
@@ -58,7 +60,8 @@ ChatMessage ChatMessage::createVoiceMessage( VNumber user_id, const QString& msg
 ChatMessage::ChatMessage( VNumber user_id, const QString& msg, ChatMessage::Type cmt, bool can_be_saved )
   : m_userId( user_id ), m_message( msg ), m_timestamp( QDateTime::currentDateTime() ), m_textColor(), m_type( cmt ),
     m_isImportant( false ), m_canBeSaved( can_be_saved ), m_isSourceCode( false ),
-    m_replyToText( "" ), m_replyToSender( "" )
+    m_replyToText( "" ), m_replyToSender( "" ),
+    m_reactionEmoji( "" ), m_reactionTargetKey( "" ), m_reactionIsRemoval( false )
 {
 }
 
@@ -76,6 +79,9 @@ ChatMessage& ChatMessage::operator=( const ChatMessage& cm )
     m_isSourceCode = cm.m_isSourceCode;
     m_replyToText = cm.m_replyToText;
     m_replyToSender = cm.m_replyToSender;
+    m_reactionEmoji = cm.m_reactionEmoji;
+    m_reactionTargetKey = cm.m_reactionTargetKey;
+    m_reactionIsRemoval = cm.m_reactionIsRemoval;
   }
   return *this;
 }
@@ -105,6 +111,14 @@ void ChatMessage::createFromMessage( const Message& m )
   {
     m_replyToText = cm_data.replyToText();
     m_replyToSender = cm_data.replyToSender();
+  }
+
+  // Extract reaction data
+  if( cm_data.isReaction() )
+  {
+    m_reactionEmoji = cm_data.reactionEmoji();
+    m_reactionTargetKey = cm_data.reactionTargetKey();
+    m_reactionIsRemoval = cm_data.reactionIsRemoval();
   }
   
   m_isImportant = m.hasFlag( Message::Important );

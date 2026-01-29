@@ -94,6 +94,7 @@ public:
   void createPrivateChat( const User& );
   int sendChatMessage( VNumber chat_id, const QString&, bool is_important, bool can_be_delayed, bool is_source_code ); // return the number of message sent (one for every user in chat)
   int sendChatMessageWithReply( VNumber chat_id, const QString&, bool is_important, bool can_be_delayed, bool is_source_code, const QString& reply_to_sender, const QString& reply_to_text );
+  int sendReaction( VNumber chat_id, const QString& reaction_emoji, const QString& target_message_key, bool is_removal );
   bool sendHelpMessage();
   bool sendHelpMessageToUser( VNumber );
   Chat createGroupChat( const User&, const Group&, bool broadcast_message );

@@ -75,6 +75,15 @@ public:
   inline const QString& replyToSender() const;
   inline void setReplyToSender( const QString& );
 
+  // Reaction support (Coal/Clawdbot enhancement)
+  inline bool isReaction() const;
+  inline const QString& reactionEmoji() const;
+  inline void setReactionEmoji( const QString& );
+  inline const QString& reactionTargetKey() const;
+  inline void setReactionTargetKey( const QString& );
+  inline bool reactionIsRemoval() const;
+  inline void setReactionIsRemoval( bool );
+
 protected:
   ChatMessage( VNumber user_id, const QString& msg, ChatMessage::Type, bool can_be_saved );
   void createFromMessage( const Message& );
@@ -92,6 +101,11 @@ private:
   // Reply data
   QString m_replyToText;
   QString m_replyToSender;
+
+  // Reaction data
+  QString m_reactionEmoji;
+  QString m_reactionTargetKey;
+  bool m_reactionIsRemoval;
 };
 
 
@@ -122,5 +136,14 @@ inline const QString& ChatMessage::replyToText() const { return m_replyToText; }
 inline void ChatMessage::setReplyToText( const QString& new_value ) { m_replyToText = new_value; }
 inline const QString& ChatMessage::replyToSender() const { return m_replyToSender; }
 inline void ChatMessage::setReplyToSender( const QString& new_value ) { m_replyToSender = new_value; }
+
+// Reaction inline functions
+inline bool ChatMessage::isReaction() const { return !m_reactionEmoji.isEmpty(); }
+inline const QString& ChatMessage::reactionEmoji() const { return m_reactionEmoji; }
+inline void ChatMessage::setReactionEmoji( const QString& new_value ) { m_reactionEmoji = new_value; }
+inline const QString& ChatMessage::reactionTargetKey() const { return m_reactionTargetKey; }
+inline void ChatMessage::setReactionTargetKey( const QString& new_value ) { m_reactionTargetKey = new_value; }
+inline bool ChatMessage::reactionIsRemoval() const { return m_reactionIsRemoval; }
+inline void ChatMessage::setReactionIsRemoval( bool new_value ) { m_reactionIsRemoval = new_value; }
 
 #endif // BEEBEEP_CHATMESSAGE_H

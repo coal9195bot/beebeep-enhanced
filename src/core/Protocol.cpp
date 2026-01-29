@@ -2011,6 +2011,22 @@ ChatMessageData Protocol::dataFromChatMessage( const Message& m ) const
   else
     cmd.setReplyToText( sl.takeFirst() );
 
+  // Reaction fields (Coal/Clawdbot enhancement)
+  if( sl.isEmpty() )
+    return cmd;
+  else
+    cmd.setReactionEmoji( sl.takeFirst() );
+
+  if( sl.isEmpty() )
+    return cmd;
+  else
+    cmd.setReactionTargetKey( sl.takeFirst() );
+
+  if( sl.isEmpty() )
+    return cmd;
+  else
+    cmd.setReactionIsRemoval( sl.takeFirst() == QLatin1String( "1" ) );
+
   return cmd;
 }
 
@@ -2024,6 +2040,10 @@ QString Protocol::chatMessageDataToString( const ChatMessageData& cmd ) const
   // Reply-to-message fields (Coal/Clawdbot enhancement)
   sl << (cmd.replyToSender().size() > 0 ? cmd.replyToSender() : "");
   sl << (cmd.replyToText().size() > 0 ? cmd.replyToText() : "");
+  // Reaction fields (Coal/Clawdbot enhancement)
+  sl << (cmd.reactionEmoji().size() > 0 ? cmd.reactionEmoji() : "");
+  sl << (cmd.reactionTargetKey().size() > 0 ? cmd.reactionTargetKey() : "");
+  sl << (cmd.reactionIsRemoval() ? "1" : "");
   return sl.join( DATA_FIELD_SEPARATOR );
 }
 
@@ -2054,6 +2074,34 @@ Message Protocol::chatMessageWithReply( const Chat& c, const QString& msg_txt, c
   cmd.setTextColor( Settings::instance().chatFontColor() != Settings::instance().chatDefaultTextColor() ? Settings::instance().chatFontColor() : QColor() );
   cmd.setReplyToSender( reply_to_sender );
   cmd.setReplyToText( reply_to_text );
+  if( c.isGroup() )
+  {
+    m.addFlag( Message::GroupChat );
+    cmd.setGroupId( c.privateId() );
+  }
+  else
+  {
+    if( !c.isDefault() )
+      m.addFlag( Message::Private );
+  }
+
+  m.setData( chatMessageDataToString( cmd ) );
+  return m;
+}
+
+Message Protocol::chatReactionMessage( const Chat& c, const QString& reaction_emoji, const QString& target_message_key, bool is_removal )
+{
+  // Reaction messages use a fallback text for backward compatibility
+  // Old clients will show this text; new clients detect the reaction data and handle it specially
+  QString fallback_text = is_removal ? QString( "[removed %1 reaction]" ).arg( reaction_emoji )
+                                     : QString( "%1" ).arg( reaction_emoji );
+
+  Message m( Message::Chat, newId(), fallback_text );
+  ChatMessageData cmd;
+  cmd.setTextColor( QColor() );  // no custom color for reactions
+  cmd.setReactionEmoji( reaction_emoji );
+  cmd.setReactionTargetKey( target_message_key );
+  cmd.setReactionIsRemoval( is_removal );
   if( c.isGroup() )
   {
     m.addFlag( Message::GroupChat );

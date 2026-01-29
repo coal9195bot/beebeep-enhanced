@@ -80,6 +80,22 @@ bool Core::dispatchChatMessageReceived( VNumber from_user_id, const Message& m )
 #endif
   bool is_auto_responder = m.hasFlag( Message::Auto );
   ChatMessage cm( from_user_id, m, is_auto_responder ? ChatMessage::Autoresponder : ChatMessage::Chat, !is_auto_responder );
+
+  // Check if this is a reaction message (Coal/Clawdbot enhancement)
+  if( cm.isReaction() )
+  {
+    // Apply the reaction to the chat's reaction store
+    if( cm.reactionIsRemoval() )
+      c.removeReaction( cm.reactionTargetKey(), cm.reactionEmoji(), from_user_id );
+    else
+      c.addReaction( cm.reactionTargetKey(), cm.reactionEmoji(), from_user_id );
+
+    // Don't add reaction messages to the message list (they're metadata, not messages)
+    ChatManager::instance().setChat( c );
+    emit chatChanged( c );
+    return true;
+  }
+
   c.addMessage( cm );
   if( cm.alertCanBeSent() )
   {

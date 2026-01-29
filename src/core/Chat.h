@@ -27,6 +27,10 @@
 #include "Group.h"
 #include "ChatMessage.h"
 
+// Reaction data: maps messageKey -> emoji -> list of userIds
+// messageKey format: "userId_timestamp" (e.g., "42_2024-01-15T10:30:00")
+typedef QMap<QString, QList<VNumber>> ReactionEmojiMap;  // emoji -> [userId1, userId2, ...]
+typedef QMap<QString, ReactionEmojiMap> ChatReactionMap;  // messageKey -> emoji map
 
 class Chat
 {
@@ -77,6 +81,14 @@ public:
   inline void setMessagesSaved();
   inline bool hasUnsavedMessages() const;
 
+  // Reaction support (Coal/Clawdbot enhancement)
+  void addReaction( const QString& message_key, const QString& emoji, VNumber user_id );
+  void removeReaction( const QString& message_key, const QString& emoji, VNumber user_id );
+  bool hasReactions( const QString& message_key ) const;
+  ReactionEmojiMap reactions( const QString& message_key ) const;
+  inline const ChatReactionMap& allReactions() const;
+  static QString messageKey( VNumber user_id, const QDateTime& timestamp );
+  static QString messageKey( const QString& sender_name, const QDateTime& timestamp );
 
 private:
   Group m_group;
@@ -85,6 +97,7 @@ private:
   int m_unreadMessages;
   QList<VNumber> m_unreadMessageUsersId;
   bool m_unsavedMessages;
+  ChatReactionMap m_reactions;
 
 };
 
@@ -121,5 +134,6 @@ inline void Chat::setLastModifiedToNow() { m_group.setLastModified( QDateTime::c
 inline const QDateTime& Chat::lastModified() const { return m_group.lastModified(); }
 inline void Chat::setMessagesSaved() { m_unsavedMessages = false; }
 inline bool Chat::hasUnsavedMessages() const { return m_unsavedMessages; }
+inline const ChatReactionMap& Chat::allReactions() const { return m_reactions; }
 
 #endif // BEEBEEP_CHAT_H

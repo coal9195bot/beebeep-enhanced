@@ -546,6 +546,39 @@ int Core::sendChatMessageWithReply( VNumber chat_id, const QString& msg, bool is
   return messages_sent;
 }
 
+int Core::sendReaction( VNumber chat_id, const QString& reaction_emoji, const QString& target_message_key, bool is_removal )
+{
+  if( !isConnected() )
+  {
+    dispatchSystemMessage( chat_id, ID_LOCAL_USER, tr( "Unable to send the reaction: you are not connected." ), DispatchToChat, ChatMessage::Other, false );
+    return 0;
+  }
+
+  Chat c = ChatManager::instance().chat( chat_id );
+  if( !c.isValid() )
+  {
+    qWarning() << "Invalid chat Id in Core::sendReaction";
+    return 0;
+  }
+
+  // Apply the reaction locally first
+  if( is_removal )
+    c.removeReaction( target_message_key, reaction_emoji, ID_LOCAL_USER );
+  else
+    c.addReaction( target_message_key, reaction_emoji, ID_LOCAL_USER );
+
+  ChatManager::instance().setChat( c );
+
+  // Create and send the reaction message to other users
+  Message m = Protocol::instance().chatReactionMessage( c, reaction_emoji, target_message_key, is_removal );
+  int messages_sent = sendMessageToChat( c, m );
+
+  // Emit chatChanged so the UI refreshes to show the reaction
+  emit chatChanged( c );
+
+  return messages_sent;
+}
+
 int Core::sendMessageToChat( const Chat& c, const Message& m )
 {
   int messages_sent = 0;

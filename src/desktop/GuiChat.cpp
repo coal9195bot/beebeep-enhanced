@@ -402,6 +402,12 @@ void GuiChat::updateActions( const Chat& c, bool is_connected, int connected_use
 void GuiChat::customContextMenu( const QPoint& p )
 {
   mp_menuContext->clear();
+
+  // Reaction submenu (Coal/Clawdbot enhancement)
+  // Try to detect the message at the click position by looking at nearby anchors
+  // We look for beebeep://reply links which contain sender+text info to identify the message
+  showReactionContextMenu( p );
+
   mp_menuContext->addAction( mp_actSelectBackgroundColor );
   mp_menuContext->addAction(  mp_actSelectForegroundColor );
   mp_menuContext->addAction(  mp_actSelectSystemColor );
@@ -424,8 +430,6 @@ void GuiChat::customContextMenu( const QPoint& p )
   act->setEnabled( !mp_teChat->textCursor().selectedText().isEmpty() );
   act = mp_menuContext->addAction( IconManager::instance().icon( "network.png" ), tr( "Open selected text as url" ), this, SLOT( openSelectedTextAsUrl() ) );
   act->setEnabled( !mp_teChat->textCursor().selectedText().isEmpty() );
-  //act = mp_menuContext->addAction( IconManager::instance().icon( "font-color.png" ), tr( "Change the background color of the selected text" ), this, SLOT( changeBackgroundColorInSelectedText() ) );
-  //act->setEnabled( !mp_teChat->textCursor().selectedText().isEmpty() );
 
   mp_menuContext->addSeparator();
   mp_menuContext->addAction( mp_actClear );
@@ -569,6 +573,10 @@ void GuiChat::checkAnchorClicked( const QUrl& url )
   if( url.scheme() == FileInfo::urlSchemeVoiceMessage() )
     emit showStatusMessageRequest( tr( "Opening voice message" ) + QString( "..." ), 3000 );
   
+  // Handle react anchors (Coal/Clawdbot enhancement) - these are invisible, just ignore click
+  if( url.scheme() == "beebeep" && url.host() == "react" )
+    return;
+
   // Handle reply links (Coal/Clawdbot enhancement)
   if( url.scheme() == "beebeep" && url.host() == "reply" )
   {
@@ -628,9 +636,16 @@ QString GuiChat::chatMessageToText( const ChatMessage& cm )
       }
     }
     
+    // Look up reactions for this message (Coal/Clawdbot enhancement)
+    Chat chat_for_reactions = ChatManager::instance().chat( m_chatId );
+    QString msg_key = Chat::messageKey( cm.userId(), cm.timestamp() );
+    ReactionEmojiMap msg_reactions;
+    if( chat_for_reactions.isValid() )
+      msg_reactions = chat_for_reactions.reactions( msg_key );
+
     s = GuiChatMessage::formatMessage( u, cm, m_lastMessageUserId, Settings::instance().chatShowMessageTimestamp(), false, false,
                                        Settings::instance().showMessagesGroupByUser(), m_chatId == ID_DEFAULT_CHAT ? true : Settings::instance().chatUseYourNameInsteadOfYou(),
-                                       Settings::instance().chatCompact(), read_status );
+                                       Settings::instance().chatCompact(), read_status, msg_reactions );
   }
   else
     s = GuiChatMessage::formatSystemMessage( cm, m_lastMessageUserId, Settings::instance().chatShowMessageTimestamp(), false, Settings::instance().chatCompact() );
@@ -1477,6 +1492,114 @@ void GuiChat::clearReply()
   m_replyToText = "";
   m_replyToSender = "";
   mp_frameReplyPreview->hide();
+}
+
+void GuiChat::showReactionContextMenu( const QPoint& p )
+{
+  // Try to find which message was right-clicked by scanning for the nearest
+  // beebeep://reply anchor, or by examining the text block at the cursor position
+  // to extract the message identity (userId + timestamp).
+
+  Chat c = ChatManager::instance().chat( m_chatId );
+  if( !c.isValid() || c.messages().isEmpty() )
+    return;
+
+  // Use the cursor position to find the text block
+  QTextCursor cursor = mp_teChat->cursorForPosition( p );
+
+  // Walk up through preceding blocks to find a "↩ Reply" link which contains
+  // sender+text info. This link is our best bet to identify the message.
+  // We search from the cursor block backward.
+  QTextBlock block = cursor.block();
+  QString found_message_key;
+  bool found = false;
+
+  // Search this block and up to 20 blocks around it for a reply link
+  for( int attempt = 0; attempt < 40 && block.isValid(); attempt++ )
+  {
+    QTextBlock::iterator it;
+    for( it = block.begin(); !it.atEnd(); ++it )
+    {
+      QTextFragment fragment = it.fragment();
+      if( !fragment.isValid() )
+        continue;
+
+      QTextCharFormat fmt = fragment.charFormat();
+      if( fmt.isAnchor() )
+      {
+        QString href = fmt.anchorHref();
+        if( href.startsWith( "beebeep://react?" ) )
+        {
+          // Found a react anchor — extract the message key
+          QUrl url( href );
+          QUrlQuery query( url );
+          found_message_key = QUrl::fromPercentEncoding( query.queryItemValue( "key" ).toUtf8() );
+          found = true;
+          break;
+        }
+      }
+    }
+    if( found )
+      break;
+
+    // Alternate: go down then up
+    if( attempt % 2 == 0 )
+      block = block.next();
+    else
+      block = block.previous();
+  }
+
+  if( !found || found_message_key.isEmpty() )
+    return;
+
+  // Add reaction emoji options to the context menu
+  QMenu* reaction_menu = mp_menuContext->addMenu( tr( "React" ) );
+
+  QStringList quick_emojis;
+  quick_emojis << QString::fromUtf8( "\xF0\x9F\x91\x8D" )   // 👍
+               << QString::fromUtf8( "\xE2\x9D\xA4\xEF\xB8\x8F" )  // ❤️
+               << QString::fromUtf8( "\xF0\x9F\x98\x82" )   // 😂
+               << QString::fromUtf8( "\xF0\x9F\x98\xAE" )   // 😮
+               << QString::fromUtf8( "\xF0\x9F\x91\x8E" );  // 👎
+
+  // Check which reactions the local user already has on this message
+  ReactionEmojiMap existing_reactions = c.reactions( found_message_key );
+
+  foreach( const QString& emoji, quick_emojis )
+  {
+    bool already_reacted = false;
+    if( existing_reactions.contains( emoji ) )
+    {
+      QList<VNumber> user_ids = existing_reactions[emoji];
+      already_reacted = user_ids.contains( ID_LOCAL_USER );
+    }
+
+    QString label = already_reacted ? emoji + tr( " (remove)" ) : emoji;
+    QAction* act = reaction_menu->addAction( label, this, SLOT( onReactionMenuTriggered() ) );
+    // Store message key and emoji and removal flag in the action data
+    QStringList data;
+    data << found_message_key << emoji << (already_reacted ? "1" : "0");
+    act->setData( data );
+  }
+
+  mp_menuContext->addSeparator();
+}
+
+void GuiChat::onReactionMenuTriggered()
+{
+  QAction* act = qobject_cast<QAction*>( sender() );
+  if( !act )
+    return;
+
+  QStringList data = act->data().toStringList();
+  if( data.size() < 3 )
+    return;
+
+  QString message_key = data.at( 0 );
+  QString emoji = data.at( 1 );
+  bool is_removal = (data.at( 2 ) == "1");
+
+  emit reactionRequest( m_chatId, emoji, message_key, is_removal );
 }
 
 void GuiChat::changeBackgroundColorInSelectedText()

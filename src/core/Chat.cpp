@@ -26,7 +26,7 @@
 
 Chat::Chat()
   : m_group(), m_messages(), m_lastMessageTimestamp(), m_unreadMessages( 0 ),
-    m_unreadMessageUsersId(), m_unsavedMessages( false )
+    m_unreadMessageUsersId(), m_unsavedMessages( false ), m_reactions()
 {
 }
 
@@ -45,6 +45,7 @@ Chat& Chat::operator=( const Chat& c )
     m_unreadMessages = c.m_unreadMessages;
     m_unreadMessageUsersId = c.m_unreadMessageUsersId;
     m_unsavedMessages = c.m_unsavedMessages;
+    m_reactions = c.m_reactions;
   }
   return *this;
 }
@@ -153,4 +154,63 @@ bool Chat::hasMinimumUsersForGroup() const
       chat_members++;
   }
   return chat_members >= 2;
+}
+
+// Reaction support (Coal/Clawdbot enhancement)
+
+QString Chat::messageKey( VNumber user_id, const QDateTime& timestamp )
+{
+  // Note: userId-based keys only work locally (not across machines)
+  // For cross-machine compatibility, use the name-based overload
+  return QString( "%1_%2" ).arg( user_id ).arg( timestamp.toString( Qt::ISODate ) );
+}
+
+QString Chat::messageKey( const QString& sender_name, const QDateTime& timestamp )
+{
+  // Name-based key is consistent across machines since both sides
+  // see the same sender name and timestamp for a given message
+  return QString( "%1_%2" ).arg( sender_name, timestamp.toUTC().toString( Qt::ISODate ) );
+}
+
+void Chat::addReaction( const QString& message_key, const QString& emoji, VNumber user_id )
+{
+  if( message_key.isEmpty() || emoji.isEmpty() )
+    return;
+
+  // Don't add duplicate reactions from the same user
+  if( m_reactions.contains( message_key ) && m_reactions[message_key].contains( emoji ) )
+  {
+    if( m_reactions[message_key][emoji].contains( user_id ) )
+      return;
+  }
+
+  m_reactions[message_key][emoji].append( user_id );
+}
+
+void Chat::removeReaction( const QString& message_key, const QString& emoji, VNumber user_id )
+{
+  if( !m_reactions.contains( message_key ) )
+    return;
+  if( !m_reactions[message_key].contains( emoji ) )
+    return;
+
+  m_reactions[message_key][emoji].removeAll( user_id );
+
+  // Clean up empty entries
+  if( m_reactions[message_key][emoji].isEmpty() )
+    m_reactions[message_key].remove( emoji );
+  if( m_reactions[message_key].isEmpty() )
+    m_reactions.remove( message_key );
+}
+
+bool Chat::hasReactions( const QString& message_key ) const
+{
+  return m_reactions.contains( message_key ) && !m_reactions[message_key].isEmpty();
+}
+
+ReactionEmojiMap Chat::reactions( const QString& message_key ) const
+{
+  if( m_reactions.contains( message_key ) )
+    return m_reactions[message_key];
+  return ReactionEmojiMap();
 }

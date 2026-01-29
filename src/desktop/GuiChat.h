@@ -72,6 +72,7 @@ public:
 signals:
   void newMessage( VNumber, const QString&, bool is_source_code );
   void newMessageWithReply( VNumber, const QString&, bool is_source_code, const QString& reply_to_sender, const QString& reply_to_text );
+  void reactionRequest( VNumber chat_id, const QString& emoji, const QString& target_message_key, bool is_removal );
   void newSourceCodeMessage( VNumber, const QString& );
   void writing( VNumber );
   void nextChat();
@@ -146,6 +147,8 @@ private slots:
   void quoteSelectedText();
   void replyToSelectedText();
   void clearReply();
+  void onReactionMenuTriggered();
+  void showReactionContextMenu( const QPoint& );
   void changeBackgroundColorInSelectedText();
   void resetChatFontToDefault();
   void operationCompleted();

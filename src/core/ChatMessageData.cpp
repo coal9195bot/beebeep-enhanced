@@ -28,7 +28,8 @@
 
 ChatMessageData::ChatMessageData()
   : m_textColor(), m_groupId( "" ), m_groupName( "" ), m_groupLastModified(),
-    m_replyToText( "" ), m_replyToSender( "" )
+    m_replyToText( "" ), m_replyToSender( "" ),
+    m_reactionEmoji( "" ), m_reactionTargetKey( "" ), m_reactionIsRemoval( false )
 {
 
 }
@@ -48,6 +49,9 @@ ChatMessageData& ChatMessageData::operator=( const ChatMessageData& cmd )
     m_groupLastModified = cmd.m_groupLastModified;
     m_replyToText = cmd.m_replyToText;
     m_replyToSender = cmd.m_replyToSender;
+    m_reactionEmoji = cmd.m_reactionEmoji;
+    m_reactionTargetKey = cmd.m_reactionTargetKey;
+    m_reactionIsRemoval = cmd.m_reactionIsRemoval;
   }
 
   return *this;

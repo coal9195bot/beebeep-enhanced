@@ -66,6 +66,7 @@ public:
   inline Message systemMessage( const QString& ) const;
   Message chatMessage( const Chat&, const QString& );
   Message chatMessageWithReply( const Chat&, const QString&, const QString& reply_to_sender, const QString& reply_to_text );
+  Message chatReactionMessage( const Chat&, const QString& reaction_emoji, const QString& target_message_key, bool is_removal );
   Message chatReadMessage( const Chat& );
   Message receivedMessage( const Message& ) const;
   Message groupChatRequestMessage_obsolete( const Chat&, const User& to_user );

@@ -223,6 +223,7 @@ void GuiMain::setupChatConnections( GuiChat* gui_chat )
 {
   connect( gui_chat, SIGNAL( newMessage( VNumber, const QString&, bool ) ), this, SLOT( sendMessage( VNumber, const QString&, bool ) ) );
   connect( gui_chat, SIGNAL( newMessageWithReply( VNumber, const QString&, bool, const QString&, const QString& ) ), this, SLOT( sendMessageWithReply( VNumber, const QString&, bool, const QString&, const QString& ) ) );
+  connect( gui_chat, SIGNAL( reactionRequest( VNumber, const QString&, const QString&, bool ) ), this, SLOT( sendReaction( VNumber, const QString&, const QString&, bool ) ) );
   connect( gui_chat, SIGNAL( writing( VNumber ) ), beeCore, SLOT( sendWritingMessage( VNumber ) ) );
   connect( gui_chat, SIGNAL( nextChat() ), this, SLOT( showNextChat() ) );
   connect( gui_chat, SIGNAL( openUrl( const QUrl&, VNumber ) ), this, SLOT( openUrlFromChat( const QUrl&, VNumber ) ) );
@@ -2426,6 +2427,16 @@ void GuiMain::sendMessageWithReply( VNumber chat_id, const QString& msg, bool is
   beeCore->sendChatMessageWithReply( chat_id, msg, false, false, is_source_code, reply_to_sender, reply_to_text );
 #endif
   mp_chatList->updateChat( ChatManager::instance().chat( chat_id ) ); // to sort the chats
+}
+
+void GuiMain::sendReaction( VNumber chat_id, const QString& emoji, const QString& target_message_key, bool is_removal )
+{
+#ifdef BEEBEEP_DEBUG
+  int num_messages = beeCore->sendReaction( chat_id, emoji, target_message_key, is_removal );
+  qDebug() << num_messages << "reaction messages sent" << (is_removal ? "(removal)" : "(add)") << "emoji:" << emoji;
+#else
+  beeCore->sendReaction( chat_id, emoji, target_message_key, is_removal );
+#endif
 }
 
 void GuiMain::showAlertForMessage( const Chat& c, const ChatMessage& cm )

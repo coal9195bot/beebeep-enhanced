@@ -26,6 +26,7 @@
 #include "BeeUtils.h"
 #include "GuiChatMessage.h"
 #include <QUrl>
+#include <QUrlQuery>
 #include "Chat.h"
 #include "ChatMessage.h"
 #include "EmoticonManager.h"
@@ -164,7 +165,8 @@ QString GuiChatMessage::datetimestampToString( const ChatMessage& cm, bool show_
 
 QString GuiChatMessage::formatMessage( const User& u, const ChatMessage& cm, VNumber last_user_id, bool show_timestamp, bool show_datestamp,
                                        bool skip_system_message, bool show_message_group_by_user, bool use_your_name, bool use_chat_compact,
-                                       int read_status )
+                                       int read_status,
+                                       const ReactionEmojiMap& reactions )
 {
   Q_UNUSED( skip_system_message );
   Q_UNUSED( show_message_group_by_user );
@@ -327,7 +329,20 @@ QString GuiChatMessage::formatMessage( const User& u, const ChatMessage& cm, VNu
   QString encoded_sender = QUrl::toPercentEncoding( user_name );
   html_message += QString( "<a href=\"beebeep://reply?sender=%1&text=%2\" style=\"color:%3; text-decoration:none;\">↩ Reply</a>" )
     .arg( encoded_sender, encoded_text, meta_color );
+
+  // Add hidden react anchor for context menu identification (Coal/Clawdbot enhancement)
+  QString msg_key = Chat::messageKey( u.id(), cm.timestamp() );
+  QString encoded_key = QUrl::toPercentEncoding( msg_key );
+  html_message += QString( " <a href=\"beebeep://react?key=%1\" style=\"color:%2; text-decoration:none; font-size:1px;\"> </a>" )
+    .arg( encoded_key, meta_color );
+
   html_message += "</font>";
+
+  // Reaction pills (Coal/Clawdbot enhancement)
+  if( !reactions.isEmpty() )
+  {
+    html_message += reactionPillsHtml( reactions, is_sent );
+  }
   
   if( is_classic )
   {
@@ -443,10 +458,61 @@ QString GuiChatMessage::chatToHtml( const Chat& c, bool skip_file_transfers, boo
         read_status = c.unreadMessageUsersId().isEmpty() ? 2 : 1;
       }
       
-      html_text += formatMessage( u, cm, last_message_user_id, force_timestamp || Settings::instance().chatShowMessageTimestamp(), force_datestamp, skip_system_message, false, true, use_chat_compact, read_status );
+      // Look up reactions for this message (Coal/Clawdbot enhancement)
+      QString msg_key = Chat::messageKey( cm.userId(), cm.timestamp() );
+      ReactionEmojiMap msg_reactions = c.reactions( msg_key );
+
+      html_text += formatMessage( u, cm, last_message_user_id, force_timestamp || Settings::instance().chatShowMessageTimestamp(), force_datestamp, skip_system_message, false, true, use_chat_compact, read_status, msg_reactions );
     }
     last_message_user_id = cm.isImportant() ? ID_IMPORTANT_MESSAGE : cm.userId();
   }
 
   return html_text;
+}
+
+// Reaction pills HTML rendering (Coal/Clawdbot enhancement)
+QString GuiChatMessage::reactionPillsHtml( const ReactionEmojiMap& reactions, bool is_sent )
+{
+  if( reactions.isEmpty() )
+    return QString();
+
+  bool dark = Settings::instance().useDarkStyle();
+  bool is_classic = Settings::instance().chatBubbleTheme() == 3;
+
+  // Pill styling
+  QString pill_bg = dark ? "#3a3a3c" : "#e8e8ed";
+  QString pill_text_color = dark ? "#ffffff" : "#000000";
+  QString pill_count_color = dark ? "#a0a0a5" : "#666666";
+
+  QString html;
+
+  if( is_classic )
+  {
+    // Classic: simple inline pills
+    html += "<br>";
+  }
+
+  // Build pills: each emoji gets a small pill showing emoji + count
+  html += QString( "<table cellspacing=\"2\" cellpadding=\"0\" border=\"0\"><tr>" );
+
+  QMap<QString, QList<VNumber>>::const_iterator it;
+  for( it = reactions.constBegin(); it != reactions.constEnd(); ++it )
+  {
+    QString emoji = it.key();
+    int count = it.value().size();
+    if( count <= 0 )
+      continue;
+
+    QString count_text = count > 1 ? QString( "&nbsp;<font color=\"%1\" size=\"1\">%2</font>" ).arg( pill_count_color ).arg( count ) : QString();
+
+    html += QString(
+      "<td bgcolor=\"%1\">"
+      "&nbsp;%2%3&nbsp;"
+      "</td><td width=\"2\"></td>"
+    ).arg( pill_bg, emoji, count_text );
+  }
+
+  html += "</tr></table>";
+
+  return html;
 }

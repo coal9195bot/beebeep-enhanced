@@ -25,7 +25,7 @@
 #define BEEBEEP_GUICHATMESSAGE_H
 
 #include "Config.h"
-class Chat;
+#include "Chat.h"
 class ChatMessage;
 class User;
 
@@ -40,9 +40,13 @@ public:
 
   static QString formatMessage( const User&, const ChatMessage&, VNumber last_user_id, bool show_timestamp, bool show_datestamp, bool skip_system_message,
                                                                                        bool show_message_group_by_user, bool use_your_name, bool use_chat_compact,
-                                                                                       int read_status = 0 );
+                                                                                       int read_status = 0,
+                                                                                       const ReactionEmojiMap& reactions = ReactionEmojiMap() );
 
   static QString formatSystemMessage( const ChatMessage&, VNumber last_user_id, bool show_timestamp, bool show_datestamp, bool use_chat_compact );
+
+  // Reaction pills HTML (Coal/Clawdbot enhancement)
+  static QString reactionPillsHtml( const ReactionEmojiMap& reactions, bool is_sent );
 
 };
 
