@@ -72,11 +72,11 @@ static const BubbleThemeColors s_themes[] = {
     "#007AFF", "#64d2ff" },
   // 1: WhatsApp
   { "#005C4B", "#ffffff", "#7cc7b5",
-    "#ffffff", "#202c33", "#000000", "#e9edef", "#667781",
+    "#d9fdd3", "#202c33", "#111b21", "#e9edef", "#667781",
     "#00a884", "#00a884" },
   // 2: Telegram
   { "#3390ec", "#ffffff", "#aed5f8",
-    "#ffffff", "#212121", "#000000", "#f0f0f0", "#8e8e93",
+    "#eef2f5", "#2b2b2b", "#000000", "#f0f0f0", "#8e8e93",
     "#3390ec", "#6ab3f3" },
   // 3: Classic (no bubbles, minimal styling)
   { "#ddeeff", "#000000", "#888888",

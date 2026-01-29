@@ -49,7 +49,7 @@ ChatRecord& ChatRecord::operator=( const ChatRecord& cr )
   return *this;
 }
 
-bool ChatRecord::operator==( const ChatRecord& cr )
+bool ChatRecord::operator==( const ChatRecord& cr ) const
 {
   if( m_privateId.isEmpty() )
   {

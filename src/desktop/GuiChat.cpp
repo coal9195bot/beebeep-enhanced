@@ -793,6 +793,14 @@ void GuiChat::ensureFocusInChat()
 
 void GuiChat::ensureLastMessageVisible()
 {
+  // Move cursor to end first so layout calculates full extent
+  QTextCursor cursor = mp_teChat->textCursor();
+  cursor.movePosition( QTextCursor::End );
+  mp_teChat->setTextCursor( cursor );
+
+  // Process pending layout events so scrollbar maximum is up to date
+  QApplication::processEvents( QEventLoop::ExcludeUserInputEvents );
+
   QScrollBar *bar = mp_teChat->verticalScrollBar();
   if( bar )
   {

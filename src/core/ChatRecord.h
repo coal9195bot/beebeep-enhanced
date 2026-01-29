@@ -35,7 +35,7 @@ public:
   ChatRecord( const QString& chat_name, const QString& chat_private_id );
 
   ChatRecord& operator=( const ChatRecord& );
-  bool operator==( const ChatRecord& );
+  bool operator==( const ChatRecord& ) const;
 
   inline bool isValid() const;
   inline void setName( const QString& );
