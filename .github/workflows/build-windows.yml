@@ -29,7 +29,8 @@ jobs:
     - name: Build
       shell: cmd
       run: |
-        qmake beebeep-desktop.pro -spec win32-msvc "CONFIG+=release"
+        cd src
+        qmake src.pro -spec win32-msvc "CONFIG+=release"
         nmake
 
     - name: Prepare deployment
