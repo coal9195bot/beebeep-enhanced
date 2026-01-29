@@ -13,19 +13,24 @@ jobs:
     - name: Checkout
       uses: actions/checkout@v4
 
-    - name: Install Qt 5.15 (MinGW)
+    - name: Install Qt 5.15
       uses: jurplel/install-qt-action@v4
       with:
         version: '5.15.2'
         host: 'windows'
         target: 'desktop'
-        arch: 'win64_mingw81'
+        arch: 'win64_msvc2019_64'
+
+    - name: Setup MSVC
+      uses: ilammy/msvc-dev-cmd@v1
+      with:
+        arch: x64
 
     - name: Build
       shell: cmd
       run: |
-        qmake beebeep-desktop.pro "CONFIG+=release"
-        mingw32-make -j4
+        qmake src\src.pro "CONFIG+=release"
+        nmake
 
     - name: Prepare deployment
       shell: pwsh
@@ -35,51 +40,41 @@ jobs:
         $qtPlugins = "$qtDir\plugins"
         
         # Find the built exe
-        $exe = Get-ChildItem -Path "test" -Filter "beebeep.exe" -Recurse | Select-Object -First 1
-        if (-not $exe) { Write-Error "beebeep.exe not found"; exit 1 }
+        $exe = Get-ChildItem -Path "." -Filter "beebeep.exe" -Recurse | Select-Object -First 1
+        if (-not $exe) {
+          Write-Host "Searching for any .exe files..."
+          Get-ChildItem -Path "." -Filter "*.exe" -Recurse | ForEach-Object { Write-Host $_.FullName }
+          Write-Error "beebeep.exe not found"
+          exit 1
+        }
+        Write-Host "Found exe at: $($exe.FullName)"
         
         # Create deploy directory
         New-Item -ItemType Directory -Force -Path "deploy" | Out-Null
         Copy-Item $exe.FullName -Destination "deploy/beebeep.exe"
         
-        # Copy Qt DLLs manually
-        $qtDlls = @(
-          "Qt5Core.dll",
-          "Qt5Gui.dll", 
-          "Qt5Widgets.dll",
-          "Qt5Network.dll",
-          "Qt5Xml.dll",
-          "Qt5PrintSupport.dll",
-          "Qt5Multimedia.dll"
-        )
-        foreach ($dll in $qtDlls) {
-          $src = Join-Path $qtBin $dll
-          if (Test-Path $src) {
-            Copy-Item $src -Destination "deploy/"
-            Write-Host "Copied: $dll"
+        # Run windeployqt
+        & "$qtBin\windeployqt.exe" "deploy\beebeep.exe" --release --no-translations --no-opengl-sw 2>&1
+        
+        # Also copy VC redist
+        $vcRedist = "C:\Program Files\Microsoft Visual Studio\2022\Enterprise\VC\Redist\MSVC\*\x64\Microsoft.VC*.CRT"
+        $vcDlls = Get-ChildItem $vcRedist -ErrorAction SilentlyContinue
+        if ($vcDlls) {
+          foreach ($dll in $vcDlls) {
+            Copy-Item $dll.FullName -Destination "deploy/" -ErrorAction SilentlyContinue
           }
+          Write-Host "Copied VC runtime DLLs"
         }
         
-        # Copy MinGW runtime DLLs
-        $mingwDlls = @("libgcc_s_seh-1.dll", "libstdc++-6.dll", "libwinpthread-1.dll")
-        foreach ($dll in $mingwDlls) {
-          $src = Join-Path $qtBin $dll
-          if (Test-Path $src) {
-            Copy-Item $src -Destination "deploy/"
-            Write-Host "Copied: $dll"
-          }
+        # Include vc_redist installer as fallback
+        $vcRedistExe = "C:\Program Files\Microsoft Visual Studio\2022\Enterprise\VC\Redist\MSVC\*\vc_redist.x64.exe"
+        $installer = Get-ChildItem $vcRedistExe -ErrorAction SilentlyContinue | Select-Object -First 1
+        if ($installer) {
+          Copy-Item $installer.FullName -Destination "deploy/"
+          Write-Host "Copied vc_redist.x64.exe"
         }
         
-        # Copy platform plugin
-        New-Item -ItemType Directory -Force -Path "deploy\platforms" | Out-Null
-        Copy-Item "$qtPlugins\platforms\qwindows.dll" -Destination "deploy\platforms\"
-        Write-Host "Copied: platforms/qwindows.dll"
-        
-        # Copy styles
-        New-Item -ItemType Directory -Force -Path "deploy\styles" | Out-Null
-        Copy-Item "$qtPlugins\styles\qwindowsvistastyle.dll" -Destination "deploy\styles\" -ErrorAction SilentlyContinue
-        
-        Write-Host "Deployment prepared successfully"
+        Write-Host "`nDeployment contents:"
         Get-ChildItem deploy -Recurse | Format-Table Name, Length
 
     - name: Upload artifact
