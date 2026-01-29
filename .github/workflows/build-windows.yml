@@ -13,33 +13,74 @@ jobs:
     - name: Checkout
       uses: actions/checkout@v4
 
-    - name: Install Qt 5.15
+    - name: Install Qt 5.15 (MinGW)
       uses: jurplel/install-qt-action@v4
       with:
         version: '5.15.2'
         host: 'windows'
         target: 'desktop'
-        arch: 'win64_msvc2019_64'
-
-    - name: Setup MSVC
-      uses: ilammy/msvc-dev-cmd@v1
-      with:
-        arch: x64
+        arch: 'win64_mingw81'
 
     - name: Build
       shell: cmd
       run: |
-        cd src
-        qmake src.pro -spec win32-msvc "CONFIG+=release"
-        nmake
+        qmake beebeep-desktop.pro "CONFIG+=release"
+        mingw32-make -j4
 
     - name: Prepare deployment
       shell: pwsh
       run: |
-        mkdir deploy
-        Copy-Item test\beebeep.exe deploy\
-        cd deploy
-        windeployqt --release --no-translations --no-opengl-sw --no-system-d3d-compiler beebeep.exe
+        $qtDir = "$env:QT_ROOT_DIR"
+        $qtBin = "$qtDir\bin"
+        $qtPlugins = "$qtDir\plugins"
+        
+        # Find the built exe
+        $exe = Get-ChildItem -Path "test" -Filter "beebeep.exe" -Recurse | Select-Object -First 1
+        if (-not $exe) { Write-Error "beebeep.exe not found"; exit 1 }
+        
+        # Create deploy directory
+        New-Item -ItemType Directory -Force -Path "deploy" | Out-Null
+        Copy-Item $exe.FullName -Destination "deploy/beebeep.exe"
+        
+        # Copy Qt DLLs manually
+        $qtDlls = @(
+          "Qt5Core.dll",
+          "Qt5Gui.dll", 
+          "Qt5Widgets.dll",
+          "Qt5Network.dll",
+          "Qt5Xml.dll",
+          "Qt5PrintSupport.dll",
+          "Qt5Multimedia.dll"
+        )
+        foreach ($dll in $qtDlls) {
+          $src = Join-Path $qtBin $dll
+          if (Test-Path $src) {
+            Copy-Item $src -Destination "deploy/"
+            Write-Host "Copied: $dll"
+          }
+        }
+        
+        # Copy MinGW runtime DLLs
+        $mingwDlls = @("libgcc_s_seh-1.dll", "libstdc++-6.dll", "libwinpthread-1.dll")
+        foreach ($dll in $mingwDlls) {
+          $src = Join-Path $qtBin $dll
+          if (Test-Path $src) {
+            Copy-Item $src -Destination "deploy/"
+            Write-Host "Copied: $dll"
+          }
+        }
+        
+        # Copy platform plugin
+        New-Item -ItemType Directory -Force -Path "deploy\platforms" | Out-Null
+        Copy-Item "$qtPlugins\platforms\qwindows.dll" -Destination "deploy\platforms\"
+        Write-Host "Copied: platforms/qwindows.dll"
+        
+        # Copy styles
+        New-Item -ItemType Directory -Force -Path "deploy\styles" | Out-Null
+        Copy-Item "$qtPlugins\styles\qwindowsvistastyle.dll" -Destination "deploy\styles\" -ErrorAction SilentlyContinue
+        
+        Write-Host "Deployment prepared successfully"
+        Get-ChildItem deploy -Recurse | Format-Table Name, Length
 
     - name: Upload artifact
       uses: actions/upload-artifact@v4
