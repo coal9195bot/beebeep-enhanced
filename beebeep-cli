@@ -1,0 +1,60 @@
+#!/bin/bash
+# BeeBEEP CLI - Send messages via the remote control socket
+# Usage: beebeep-cli send "User Name" "Message text"
+#        beebeep-cli users
+#        beebeep-cli status
+#        beebeep-cli chats
+
+SOCKET_PATH="$HOME/Library/Application Support/MarcoMastroddiSW/BeeBEEP/control.sock"
+
+if [ ! -S "$SOCKET_PATH" ]; then
+    echo "Error: BeeBEEP is not running or RemoteControl is not enabled"
+    echo "Socket not found at: $SOCKET_PATH"
+    exit 1
+fi
+
+send_command() {
+    local json="$1"
+    echo "$json" | nc -U "$SOCKET_PATH"
+}
+
+case "$1" in
+    send)
+        if [ -z "$2" ] || [ -z "$3" ]; then
+            echo "Usage: beebeep-cli send \"User Name\" \"Message text\""
+            exit 1
+        fi
+        # Escape quotes in the message
+        TO=$(echo "$2" | sed 's/"/\\"/g')
+        MSG=$(echo "$3" | sed 's/"/\\"/g')
+        send_command "{\"action\":\"send\",\"to\":\"$TO\",\"message\":\"$MSG\"}"
+        ;;
+    users|list_users)
+        send_command '{"action":"list_users"}'
+        ;;
+    status)
+        send_command '{"action":"status"}'
+        ;;
+    chats|list_chats)
+        send_command '{"action":"list_chats"}'
+        ;;
+    help|--help|-h)
+        echo "BeeBEEP CLI - Remote control interface"
+        echo ""
+        echo "Commands:"
+        echo "  send <user> <message>  Send a message to a user"
+        echo "  users                  List all known users"
+        echo "  status                 Show connection status"
+        echo "  chats                  List all chats"
+        echo ""
+        echo "Examples:"
+        echo "  beebeep-cli send \"Chris G\" \"Hey, quick question...\""
+        echo "  beebeep-cli users"
+        echo "  beebeep-cli status"
+        ;;
+    *)
+        echo "Unknown command: $1"
+        echo "Run 'beebeep-cli help' for usage"
+        exit 1
+        ;;
+esac
