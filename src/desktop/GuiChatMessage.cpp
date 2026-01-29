@@ -330,10 +330,10 @@ QString GuiChatMessage::formatMessage( const User& u, const ChatMessage& cm, VNu
   html_message += QString( "<a href=\"beebeep://reply?sender=%1&text=%2\" style=\"color:%3; text-decoration:none;\">↩ Reply</a>" )
     .arg( encoded_sender, encoded_text, meta_color );
 
-  // Add hidden react anchor for context menu identification (Coal/Clawdbot enhancement)
+  // React anchor - visible "React" link (Coal/Clawdbot enhancement)
   QString msg_key = Chat::messageKey( u.id(), cm.timestamp() );
   QString encoded_key = QUrl::toPercentEncoding( msg_key );
-  html_message += QString( " <a href=\"beebeep://react?key=%1\" style=\"color:%2; text-decoration:none; font-size:1px;\"> </a>" )
+  html_message += QString( " &nbsp;|&nbsp; <a href=\"beebeep://react?key=%1\" style=\"color:%2; text-decoration:none;\">&#x2795;</a>" )
     .arg( encoded_key, meta_color );
 
   html_message += "</font>";

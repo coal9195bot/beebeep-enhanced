@@ -573,9 +573,47 @@ void GuiChat::checkAnchorClicked( const QUrl& url )
   if( url.scheme() == FileInfo::urlSchemeVoiceMessage() )
     emit showStatusMessageRequest( tr( "Opening voice message" ) + QString( "..." ), 3000 );
   
-  // Handle react anchors (Coal/Clawdbot enhancement) - these are invisible, just ignore click
+  // Handle react anchors (Coal/Clawdbot enhancement) - show reaction picker popup
   if( url.scheme() == "beebeep" && url.host() == "react" )
+  {
+    QUrlQuery query( url );
+    QString message_key = QUrl::fromPercentEncoding( query.queryItemValue( "key" ).toUtf8() );
+    if( !message_key.isEmpty() )
+    {
+      Chat c = ChatManager::instance().chat( m_chatId );
+      ReactionEmojiMap existing_reactions = c.isValid() ? c.reactions( message_key ) : ReactionEmojiMap();
+
+      QMenu popup( this );
+      QStringList quick_emojis;
+      quick_emojis << QString::fromUtf8( "\xF0\x9F\x91\x8D" )
+                   << QString::fromUtf8( "\xE2\x9D\xA4\xEF\xB8\x8F" )
+                   << QString::fromUtf8( "\xF0\x9F\x98\x82" )
+                   << QString::fromUtf8( "\xF0\x9F\x98\xAE" )
+                   << QString::fromUtf8( "\xF0\x9F\x91\x8E" );
+
+      foreach( const QString& emoji, quick_emojis )
+      {
+        bool already_reacted = false;
+        if( existing_reactions.contains( emoji ) )
+          already_reacted = existing_reactions[emoji].contains( ID_LOCAL_USER );
+
+        QString label = already_reacted ? emoji + tr( " ✓" ) : emoji;
+        QAction* act = popup.addAction( label );
+        QStringList data;
+        data << message_key << emoji << (already_reacted ? "1" : "0");
+        act->setData( data );
+      }
+
+      QAction* chosen = popup.exec( QCursor::pos() );
+      if( chosen )
+      {
+        QStringList data = chosen->data().toStringList();
+        if( data.size() >= 3 )
+          emit reactionRequest( m_chatId, data.at( 1 ), data.at( 0 ), data.at( 2 ) == "1" );
+      }
+    }
     return;
+  }
 
   // Handle reply links (Coal/Clawdbot enhancement)
   if( url.scheme() == "beebeep" && url.host() == "reply" )
