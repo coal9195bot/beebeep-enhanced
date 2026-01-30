@@ -585,11 +585,12 @@ void GuiChat::checkAnchorClicked( const QUrl& url )
 
       QMenu popup( this );
       QStringList quick_emojis;
-      quick_emojis << QString::fromUtf8( "\xF0\x9F\x91\x8D" )
-                   << QString::fromUtf8( "\xE2\x9D\xA4\xEF\xB8\x8F" )
-                   << QString::fromUtf8( "\xF0\x9F\x98\x82" )
-                   << QString::fromUtf8( "\xF0\x9F\x98\xAE" )
-                   << QString::fromUtf8( "\xF0\x9F\x91\x8E" );
+      quick_emojis << QString::fromUtf8( "\xF0\x9F\x91\x8D" )   // 👍
+                   << QString::fromUtf8( "\xE2\x9D\xA4" )        // ❤
+                   << QString::fromUtf8( "\xF0\x9F\x98\x82" )   // 😂
+                   << QString::fromUtf8( "\xF0\x9F\x98\xAE" )   // 😮
+                   << QString::fromUtf8( "\xF0\x9F\x91\x8E" )   // 👎
+                   << QString::fromUtf8( "\xE2\x80\xBC\xEF\xB8\x8F" );  // ‼️
 
       foreach( const QString& emoji, quick_emojis )
       {
@@ -1595,10 +1596,11 @@ void GuiChat::showReactionContextMenu( const QPoint& p )
 
   QStringList quick_emojis;
   quick_emojis << QString::fromUtf8( "\xF0\x9F\x91\x8D" )   // 👍
-               << QString::fromUtf8( "\xE2\x9D\xA4\xEF\xB8\x8F" )  // ❤️
+               << QString::fromUtf8( "\xE2\x9D\xA4" )        // ❤
                << QString::fromUtf8( "\xF0\x9F\x98\x82" )   // 😂
                << QString::fromUtf8( "\xF0\x9F\x98\xAE" )   // 😮
-               << QString::fromUtf8( "\xF0\x9F\x91\x8E" );  // 👎
+               << QString::fromUtf8( "\xF0\x9F\x91\x8E" )   // 👎
+               << QString::fromUtf8( "\xE2\x80\xBC\xEF\xB8\x8F" );  // ‼️
 
   // Check which reactions the local user already has on this message
   ReactionEmojiMap existing_reactions = c.reactions( found_message_key );
